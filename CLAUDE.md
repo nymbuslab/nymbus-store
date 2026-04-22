@@ -229,3 +229,19 @@ npx supabase gen types typescript --linked > src/types/database.types.ts
 - Todo `db push` / `migration` é feito via CLI diretamente contra o projeto remoto
 - Clientes em [`src/lib/supabase/`](src/lib/supabase/): `client.ts` (browser), `server.ts` (RSC/actions/route handlers) e `session.ts` (refresh de sessão + guard de `/admin/*`, consumido pelo [`src/proxy.ts`](src/proxy.ts))
 - **Next 16** usa `proxy.ts` (com `export function proxy()`) no lugar do antigo `middleware.ts` — veja [`src/proxy.ts`](src/proxy.ts)
+
+---
+
+## 13. DECISÕES DE ARQUITETURA
+
+Decisões importantes tomadas durante o desenvolvimento. Sempre adicionar aqui quando uma escolha relevante for feita, com a data.
+
+### 2026-04-22 — Deploy postergado para a Fase 6
+
+O PRD pede "ambiente hospedado" ainda na Fase 0, mas o projeto **vai ficar só em `localhost`** até a Fase 6 (pagamentos dos pedidos). Motivo: só precisa de domínio público quando for configurar webhooks do Mercado Pago / Pagar.me. Deploy provisório será na Vercel, temporário para testes de integração. Até lá, CI roda só `lint` + `build` no GitHub Actions — sem preview.
+
+### 2026-04-22 — Política de multi-tenancy (Fase 0) vs. schema com RLS (Fase 1)
+
+- **Fase 0** entrega a **política** de multi-tenancy: convenções (`store_id` em toda tabela operacional), guard de rota (`src/proxy.ts`), estrutura de pastas por módulo, separação visual admin/storefront, e isolamento de clientes Supabase por contexto (browser/server/proxy).
+- **Fase 1** entrega a **implementação**: tabelas com RLS ativa, funções `user_has_store_access()` / `is_platform_admin()`, e a tabela `audit_logs` com o helper `logAudit()` cabeado a ela.
+- Na Fase 0 o `lib/logger.ts` existe como stub (console + placeholder `logAudit()` que só loga) para que a Fase 1 possa apenas **plugar** a gravação em `audit_logs` sem precisar tocar em chamadas já espalhadas pelo código.
