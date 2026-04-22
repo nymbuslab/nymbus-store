@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(supabase --version)",
+      "Bash(npx --yes create-next-app@latest _nextsetup --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --skip-install --yes --turbopack)",
+      "Bash(npx --yes create-next-app@latest tmp-setup --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --skip-install --yes --turbopack)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv tmp-setup/* .)",
+      "Bash(npm install *)",
+      "Bash(npx --yes shadcn@latest init --yes --base-color neutral)",
+      "Bash(npx --yes shadcn@latest init --help)",
+      "Bash(npx --yes shadcn@latest init --defaults --no-monorepo --yes)",
+      "Bash(git check-ignore *)",
+      "Bash(npm run *)",
+      "mcp__context7__query-docs"
+    ]
+  }
+}
