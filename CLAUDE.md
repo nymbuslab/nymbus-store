@@ -118,7 +118,7 @@ supabase/
 
 | Fase | Descrição | Status |
 |------|-----------|--------|
-| 0 | Fundação técnica: setup, auth, multi-tenant, design system | ⏳ |
+| 0 | Fundação técnica: setup, auth, multi-tenant, design system | ✅ |
 | 1 | Banco de dados, dashboard base, shell do admin | ⏳ |
 | 2 | Onboarding do lojista | ⏳ |
 | 3 | Catálogo: categorias e produtos | ⏳ |
@@ -232,7 +232,50 @@ npx supabase gen types typescript --linked > src/types/database.types.ts
 
 ---
 
-## 13. DECISÕES DE ARQUITETURA
+## 13. SCHEMA DO BANCO (Fase 1)
+
+Migration inicial: `supabase/migrations/20260422235451_initial_core_schema.sql`.
+
+Tabelas do núcleo multi-tenant:
+
+- `platform_users` — perfil estendido (1:1 com `auth.users`, criado via trigger). `is_platform_admin=true` = equipe Nymbus com acesso cross-tenant.
+- `stores` — o tenant. Colunas: `id`, `slug` (único, validado por regex), `name`, `status` (`draft`/`configuring`/`active`/`blocked`), `owner_id`, `logo_url`, timestamps.
+- `store_members` — M:N user↔store com `role` (`owner`/`admin`/`operator`/`financial`). Ao criar uma loja, o dono é inserido automaticamente aqui (trigger `bootstrap_store_owner_membership`).
+- `audit_logs` — append-only. Gravação **só** via RPC `record_audit` (security definer).
+
+Funções helper (todas `security definer`, `search_path = ''`, usadas nas policies):
+
+- `public.is_platform_admin()` — true se `auth.uid()` tem `is_platform_admin=true`.
+- `public.user_has_store_access(uuid)` — true se é platform admin **ou** tem membership com `joined_at` não nulo.
+- `public.user_is_store_owner(uuid)` — true se `auth.uid() = stores.owner_id`.
+- `public.record_audit(p_action, p_store_id, p_resource_type, p_resource_id, p_metadata)` — única rota autorizada para o cliente gravar auditoria. Valida acesso à loja antes de inserir.
+- `public.create_store(p_name, p_slug)` — cria uma loja em nome do usuário autenticado. Retorna o `id` da loja criada. Substitui o INSERT direto (evita atrito com RLS no WITH CHECK via PostgREST) e garante `platform_users` (caso borda de usuário antigo sem linha de perfil).
+
+Triggers:
+
+- `on_auth_user_created` (após insert em `auth.users`) → cria linha em `platform_users`.
+- `on_auth_user_email_updated` → mantém `platform_users.email` sincronizado.
+- `on_store_created_bootstrap_owner` → insere o owner em `store_members` com role `owner` e `joined_at=now()`.
+- `platform_users_set_updated_at` / `stores_set_updated_at` → mantém `updated_at`.
+
+Convenções:
+
+- Todas as tabelas usam UUID (`gen_random_uuid()`) como PK, exceto `audit_logs` que usa `bigint identity` (append-only de alto volume).
+- FKs sempre indexadas.
+- RLS ligada + `force row level security` em todas as tabelas. Policies só para `authenticated`.
+- Chamadas a `auth.uid()` dentro de policies sempre envolvidas em `(select auth.uid())` para cache por query (performance).
+- Tipos TypeScript são gerados do banco remoto: `npx supabase gen types typescript --linked > src/types/database.types.ts`. Clientes em `src/lib/supabase/*` usam `createXxxClient<Database>()`.
+
+Contexto da loja ativa:
+
+- Cookie httpOnly `nymbus-active-store` (constante em `src/constants/stores.ts`).
+- Helpers em `src/modules/stores/queries.ts`: `listUserStores()`, `getActiveStore()`, `getStoreMemberCount()`.
+- Actions em `src/modules/stores/actions.ts`: `createStoreAction` (chama RPC `create_store`), `setActiveStoreAction`.
+- `StoreSwitcher` no header aparece só se o user tem > 1 loja.
+
+---
+
+## 14. DECISÕES DE ARQUITETURA
 
 Decisões importantes tomadas durante o desenvolvimento. Sempre adicionar aqui quando uma escolha relevante for feita, com a data.
 

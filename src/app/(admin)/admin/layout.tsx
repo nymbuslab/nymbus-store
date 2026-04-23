@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { getActiveStore, listUserStores } from "@/modules/stores/queries";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -14,9 +15,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect("/login");
   }
 
+  const [stores, active] = await Promise.all([listUserStores(), getActiveStore()]);
+
   return (
     <div className="min-h-screen bg-background">
-      <AdminHeader userEmail={user.email ?? null} />
+      <AdminHeader
+        userEmail={user.email ?? null}
+        stores={stores}
+        activeStoreId={active?.id ?? null}
+      />
       <div className="flex">
         <aside className="hidden w-64 shrink-0 border-r bg-sidebar lg:block">
           <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">

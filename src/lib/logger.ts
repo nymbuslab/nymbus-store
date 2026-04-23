@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/server";
+
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 type LogFields = Record<string, unknown>;
@@ -22,19 +24,36 @@ export const logger = {
 };
 
 export type AuditEvent = {
-  actorId: string | null;
-  storeId: string | null;
   action: string;
-  resourceType?: string;
-  resourceId?: string;
+  storeId?: string | null;
+  resourceType?: string | null;
+  resourceId?: string | null;
   metadata?: Record<string, unknown>;
 };
 
 /**
- * Stub de auditoria — Fase 0 só loga.
- * Na Fase 1, quando a tabela `audit_logs` existir, a gravação real vai aqui
- * sem precisar tocar nas chamadas espalhadas pelo código.
+ * Grava um evento de auditoria em `audit_logs` via RPC `record_audit`.
+ * A RPC é security definer e valida acesso do actor à loja.
+ * Se a gravação falhar, o evento vai ao menos para o log estruturado — não
+ * queremos que uma falha de auditoria derrube a ação do usuário.
  */
 export async function logAudit(event: AuditEvent): Promise<void> {
-  logger.info("audit:event", { ...event, persisted: false });
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("record_audit", {
+      p_action: event.action,
+      p_store_id: event.storeId ?? undefined,
+      p_resource_type: event.resourceType ?? undefined,
+      p_resource_id: event.resourceId ?? undefined,
+      p_metadata: (event.metadata ?? {}) as never,
+    });
+    if (error) {
+      logger.error("audit:persist_failed", { event, error: error.message });
+    }
+  } catch (cause) {
+    logger.error("audit:persist_exception", {
+      event,
+      cause: cause instanceof Error ? cause.message : String(cause),
+    });
+  }
 }

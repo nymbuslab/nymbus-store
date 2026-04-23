@@ -13,12 +13,16 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { signoutAction } from "@/modules/auth/actions";
+import { StoreSwitcher } from "@/modules/stores/components/store-switcher";
+import type { StoreRow } from "@/modules/stores/queries";
 
 type AdminHeaderProps = {
   userEmail: string | null;
+  stores: StoreRow[];
+  activeStoreId: string | null;
 };
 
-export function AdminHeader({ userEmail }: AdminHeaderProps) {
+export function AdminHeader({ userEmail, stores, activeStoreId }: AdminHeaderProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -47,8 +51,11 @@ export function AdminHeader({ userEmail }: AdminHeaderProps) {
       <div className="flex-1 font-semibold tracking-tight">Nymbus Store</div>
 
       <div className="flex items-center gap-3">
+        {activeStoreId ? (
+          <StoreSwitcher stores={stores} activeId={activeStoreId} />
+        ) : null}
         {userEmail ? (
-          <span className="hidden text-sm text-muted-foreground sm:inline">
+          <span className="hidden text-sm text-muted-foreground md:inline">
             {userEmail}
           </span>
         ) : null}
