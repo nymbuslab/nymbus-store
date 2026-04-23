@@ -4,9 +4,7 @@
 
 ## 🔄 Em Andamento
 
-### Fase 4 — validação manual pendente
-
-- [ ] (P0) Teste end-to-end pelo usuário: ir em "Pedidos" → "Novo pedido" → preencher cliente (nome + e-mail OU telefone) → adicionar 2+ itens do catálogo → escolher retirada ou entrega local (se entrega, preencher CEP e conferir autopreenchimento + taxa) → adicionar nota interna → criar → entrar no detalhe do pedido → ver linha do tempo (1 entrada "Novo") → clicar "Aguardando pagamento" com nota → ver 2ª entrada no histórico → avançar até "Entregue" → criar um 2º pedido com o mesmo cliente (confirmar que reutilizou o cliente existente) → ir em "Clientes" → ver perfil com histórico → no SQL Editor (opcional): `select * from public.orders order by number_seq;`, `select * from public.order_status_history order by created_at;`, `select * from public.customers;`.
+Nada no momento.
 
 ## 📋 Próximos Passos
 
@@ -35,6 +33,7 @@
 - [x] (P0) `CLAUDE.md` §13 atualizado com schema Fase 4 e regras de status
 - [x] (P0) `npm run lint` e `npm run build` passando limpos
 - [x] (P0) Todas as rotas novas registradas no build output
+- [x] (P0) Validação manual pelo usuário: criação de pedidos (retirada + entrega), linha do tempo com notas, reutilização de cliente e filtros — OK
 
 ### Fase 3 — Catálogo
 
