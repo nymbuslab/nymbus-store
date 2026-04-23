@@ -122,7 +122,7 @@ supabase/
 | 1 | Banco de dados, dashboard base, shell do admin | ✅ |
 | 2 | Onboarding do lojista | ✅ |
 | 3 | Catálogo: categorias e produtos | ✅ |
-| 4 | Pedidos e clientes | ⏳ |
+| 4 | Pedidos e clientes | ✅ |
 | 5 | Frete local e logística mínima | ⏳ |
 | 6 | Pagamentos dos pedidos (MP/Pagar.me) | ⏳ |
 | 7 | Relatórios | ⏳ |
@@ -309,6 +309,36 @@ App:
   - `/admin/configuracoes` — toggle `stock_enabled`.
 - `AdminNav` atualizado: `Categorias` + `Produtos` apontando para `/admin/catalogo/*`.
 - Libs novas: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`.
+
+### Fase 4
+
+Migration `20260423043712_phase4_orders_schema.sql`:
+
+- **Enums**: `order_status` (`novo`/`aguardando_pagamento`/`pago`/`em_separacao`/`pronto_para_retirada`/`pronto_para_entrega`/`saiu_para_entrega`/`entregue`/`cancelado`), `order_fulfillment_type` (`pickup`/`local_delivery`), `order_source` (`manual`/`storefront`).
+- **`customers`** — identidade do comprador por loja. CHECK exige e-mail OU telefone. Unique parcial por `(store_id, lower(email))` e `(store_id, phone)`.
+- **`customer_addresses`** — endereços do cliente. Unique parcial garante **um** endereço primário por cliente.
+- **`orders`** — `number_seq` sequencial por loja (exibido via `formatOrderNumber` em `src/constants/orders.ts`). `total_cents` é **generated column** (`subtotal_cents + delivery_fee_cents`). `delivery_address_snapshot` (jsonb) preserva o endereço no momento do pedido. CHECK exige snapshot quando `fulfillment_type = 'local_delivery'`.
+- **`order_items`** — `product_id` nullable (`on delete set null`); `product_name_snapshot`/`sku_snapshot`/`unit_price_cents` **congelam** a informação do produto na hora da venda. `subtotal_cents` é generated column.
+- **`order_status_history`** — append-only. Trigger AFTER INSERT em `orders` grava a primeira linha automaticamente.
+- RLS em todas, policies `authenticated` via `user_has_store_access(store_id)`.
+
+Migration `20260423043714_phase4_orders_rpcs.sql`:
+
+- `public.create_order(...)` — transacional: valida acesso, faz find-or-create em `customers` por e-mail → depois telefone, grava endereço em `customer_addresses` (marca `is_primary` se for o primeiro), calcula subtotal a partir dos produtos (usa `promo_price_cents` quando presente), gera `number_seq` (max+1 por loja), insere `orders`, insere `order_items` com snapshot, grava `audit_logs`. Retorna `order.id`.
+- `public.update_order_status(p_order_id, p_next_status, p_note)` — UPDATE do status + INSERT em `order_status_history` com a nota (ou só INSERT da nota se status igual). Audita em `audit_logs`.
+
+App:
+
+- Módulo `src/modules/orders/` — queries (`listOrders` com filtros status+período, `getOrderDetail`), actions (`createOrderAction`, `updateOrderStatusAction`, `updateOrderNotesAction`), componentes (`OrderStatusBadge`, `OrdersFilters`, `OrdersList`, `NewOrderForm` com ViaCEP, `StatusActions` com sugestão de próximo status, `NotesForm`).
+- Módulo `src/modules/customers/` — `listCustomers` com agregados (`order_count`, `total_spent_cents`, `last_order_at`) e `getCustomerDetail`.
+- Constants em `src/constants/orders.ts` (`ORDER_STATUS_LABEL`, `ORDER_STATUS_TONE`, `ORDER_STATUS_SUGGESTED_NEXT`, `formatOrderNumber`, `formatCents`).
+- Validações Zod em `src/lib/validations/orders.ts`.
+- Rotas: `/admin/pedidos`, `/admin/pedidos/novo`, `/admin/pedidos/[id]`, `/admin/clientes`, `/admin/clientes/[id]`.
+
+Regras de negócio:
+
+- "Pedido só avança para separação após pagamento confirmado" (PRD §15.8) — a UI **sugere** a ordem em `ORDER_STATUS_SUGGESTED_NEXT` mas **não bloqueia**. Validação forte virá na Fase 6 (webhooks de pagamento).
+- Estoque **não é decrementado** ao criar pedido manual nesta fase (vem na Fase 6 junto com o checkout real).
 
 Triggers:
 
