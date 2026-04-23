@@ -119,8 +119,8 @@ supabase/
 | Fase | Descrição | Status |
 |------|-----------|--------|
 | 0 | Fundação técnica: setup, auth, multi-tenant, design system | ✅ |
-| 1 | Banco de dados, dashboard base, shell do admin | ⏳ |
-| 2 | Onboarding do lojista | ⏳ |
+| 1 | Banco de dados, dashboard base, shell do admin | ✅ |
+| 2 | Onboarding do lojista | ✅ |
 | 3 | Catálogo: categorias e produtos | ⏳ |
 | 4 | Pedidos e clientes | ⏳ |
 | 5 | Frete local e logística mínima | ⏳ |
@@ -251,6 +251,35 @@ Funções helper (todas `security definer`, `search_path = ''`, usadas nas polic
 - `public.record_audit(p_action, p_store_id, p_resource_type, p_resource_id, p_metadata)` — única rota autorizada para o cliente gravar auditoria. Valida acesso à loja antes de inserir.
 - `public.create_store(p_name, p_slug)` — cria uma loja em nome do usuário autenticado. Retorna o `id` da loja criada. Substitui o INSERT direto (evita atrito com RLS no WITH CHECK via PostgREST) e garante `platform_users` (caso borda de usuário antigo sem linha de perfil).
 
+### Fase 2
+
+Tabelas adicionadas em `20260423003719_phase2_onboarding_schema.sql`:
+
+- `store_settings` (1:1 com `stores`) — telefone, whatsapp, contact_email, endereço (CEP/rua/número/complemento/bairro/cidade/UF), política livre. Criada automaticamente pelo trigger `on_store_created_bootstrap_defaults`.
+- `store_delivery_config` (1:1) — `pickup_enabled`, `local_delivery_enabled`, `delivery_radius_km`, `delivery_fee_cents`. Criada automaticamente pelo mesmo trigger. CHECK força `radius` e `fee` quando entrega local está ativa.
+- `store_payment_gateways` — `provider` (enum `payment_provider`), `status` (enum `payment_gateway_status`: `pending_credentials`/`configured`/`disabled`). Unique por (store_id, provider).
+- `categories` — catálogo básico (id, name, slug, position, is_active). Unique por (store_id, slug). CRUD completo fica na Fase 3.
+- `products` — produto básico (name, slug, price_cents, promo_price_cents, stock_qty, weight_grams, status enum `product_status`: `draft`/`active`/`inactive`, is_featured, primary_image_url). Galeria (`product_images`) vem na Fase 3.
+
+Enums adicionados: `product_status`, `payment_provider`, `payment_gateway_status`.
+
+RPCs em `20260423003912_phase2_rpcs_and_storage.sql`:
+
+- `public.mark_store_configuring(p_store_id)` — chamada implicitamente pela primeira action do onboarding; muda `status` de `draft` para `configuring`.
+- `public.upsert_store_payment_gateway(p_store_id, p_provider)` — garante que cada loja tem no máximo um gateway ativo (os demais viram `disabled`).
+- `public.activate_store(p_store_id)` — valida critérios (logo, contato, endereço, entrega, gateway, categoria ativa, produto publicado) e, se tudo OK, muda `status` para `active`. Retorna `jsonb { activated, missing }`.
+
+Storage:
+
+- Bucket público `store-logos` (limite 2 MB, PNG/JPEG/WebP). Path convencionado: `{store_id}/logo-{timestamp}.{ext}`. Policies em `storage.objects` usam `(storage.foldername(name))[1]::uuid` para derivar o `store_id` e chamam `user_has_store_access()`.
+
+App:
+
+- Módulo `src/modules/onboarding/`: `queries.ts` (`loadOnboardingState` com checklist), `actions.ts` (8 server actions), `components/` (stepper, step-frame, forms por passo).
+- Rotas `src/app/(admin)/admin/onboarding/{page, loja, endereco, logo, categoria, produto, entrega, pagamento, revisao}`.
+- Dashboard: quando a loja não está `active`, aparece card "Complete o onboarding" com link direto para o próximo passo pendente.
+- `next.config.ts` registra o hostname do Supabase Storage em `images.remotePatterns` para o `<Image>` do logo.
+
 Triggers:
 
 - `on_auth_user_created` (após insert em `auth.users`) → cria linha em `platform_users`.
@@ -288,3 +317,81 @@ O PRD pede "ambiente hospedado" ainda na Fase 0, mas o projeto **vai ficar só e
 - **Fase 0** entrega a **política** de multi-tenancy: convenções (`store_id` em toda tabela operacional), guard de rota (`src/proxy.ts`), estrutura de pastas por módulo, separação visual admin/storefront, e isolamento de clientes Supabase por contexto (browser/server/proxy).
 - **Fase 1** entrega a **implementação**: tabelas com RLS ativa, funções `user_has_store_access()` / `is_platform_admin()`, e a tabela `audit_logs` com o helper `logAudit()` cabeado a ela.
 - Na Fase 0 o `lib/logger.ts` existe como stub (console + placeholder `logAudit()` que só loga) para que a Fase 1 possa apenas **plugar** a gravação em `audit_logs` sem precisar tocar em chamadas já espalhadas pelo código.
+
+### 2026-04-22 — ViaCEP no passo de endereço
+
+Autopreenchimento de endereço no onboarding (rua/bairro/cidade/UF) usa a API pública **ViaCEP** (`https://viacep.com.br/ws/{cep}/json/`). Fetch é client-side (no `AddressForm`), sem chave, sem custo, sem rate-limit relevante. Só preenche campos **vazios** — respeita o que o usuário já digitou. Se o CEP não existe ou a API falha, o form cai para preenchimento manual sem bloquear a submissão. Helper em [`src/lib/utils/cep.ts`](src/lib/utils/cep.ts) expõe `lookupCep()`, `formatCep()`, `sanitizeCep()` — reutilizáveis em outras telas que vierem a pedir endereço (ex: endereços de cliente na Fase 4).
+
+---
+
+## 15. gstack — navegação web e ferramentas
+
+### Regra obrigatória
+
+**Toda navegação web (abrir páginas, QA, dogfood, screenshots, smoke test de deploy) deve ser feita via `/browse` do gstack.** Nunca usar as ferramentas `mcp__claude-in-chrome__*` — estão explicitamente **banidas** neste projeto.
+
+Para UAT visual que exige navegador real com extensão/side-panel (ex: testar login OAuth com cookies reais do Chromium), usar `/open-gstack-browser`. Cookies autenticados podem ser importados para o browse headless via `/setup-browser-cookies`.
+
+### Skills disponíveis
+
+Slugs reais (em inglês) — a lista em português enviada pelo usuário é referência humana.
+
+#### Navegação e QA
+
+- `/browse` — navegação headless rápida (~100 ms/comando), screenshots anotados, diff antes/depois, teste de formulários e uploads. **Padrão para qualquer interação com URL.**
+- `/open-gstack-browser` — abre Chromium controlável com sidebar visível (watch em tempo real).
+- `/setup-browser-cookies` — importa cookies do Chromium real para o browse headless (autenticação).
+- `/qa` — QA sistemático com correção automática (test → fix → commit → re-verify).
+- `/qa-only` — QA report-only, sem tocar em código.
+- `/canary` — monitor pós-deploy (console errors, regressões, screenshots periódicos).
+- `/benchmark` — detecção de regressão de performance (page load, Core Web Vitals, bundle size).
+- `/benchmark-models` — comparação cross-model (Claude vs GPT vs Gemini) para skills.
+
+#### Planejamento e review
+
+- `/office-hours` — brainstorm estilo YC (seis perguntas fundantes) antes de planejar.
+- `/plan-ceo-review` — review de plano em modo CEO (expandir escopo, 10-star product).
+- `/plan-eng-review` — review de plano em modo eng manager (arquitetura, edge cases).
+- `/plan-design-review` — review de plano de design (0-10 por dimensão, plan mode).
+- `/plan-devex-review` — review de plano de DX (personas, magical moments).
+- `/design-consultation` — cria DESIGN.md com sistema de design completo.
+- `/design-shotgun` — gera variantes de design para comparação.
+- `/design-html` — finaliza design em HTML/CSS Pretext-native.
+- `/design-review` — auditoria visual de site vivo com fix iterativo.
+- `/devex-review` — auditoria ao vivo de developer experience com scorecard.
+- `/review` — code review pré-merge (SQL safety, trust boundaries, side effects).
+- `/autoplan` — pipeline de review automático (CEO + design + eng + DX sequenciais).
+- `/codex` — second opinion via OpenAI Codex CLI (review, challenge, consult).
+- `/cso` — auditoria de segurança (secrets, supply chain, OWASP, STRIDE).
+
+#### Deploy e shipping
+
+- `/ship` — pipeline de PR: test + review + bump VERSION + CHANGELOG + commit + push + PR.
+- `/land-and-deploy` — merge do PR + espera CI + deploy + canary verify.
+- `/setup-deploy` — detecta plataforma (Vercel, Fly, Render…) e configura land-and-deploy.
+
+#### Observabilidade e saúde
+
+- `/investigate` — debug sistemático com root cause (investigate → analyze → hypothesize → implement). **Usar sempre que o usuário reportar erro, 500, stack trace, ou "parou de funcionar".**
+- `/health` — dashboard de qualidade (typecheck + lint + test + dead code) com score composto.
+- `/retro` — retrospectiva engenharia com histórico e tendências.
+- `/learn` — gerencia learnings (procurar, podar, exportar).
+- `/document-release` — pós-ship, sincroniza docs (README, ARCHITECTURE, CHANGELOG, CLAUDE.md).
+- `/make-pdf` — markdown → PDF de qualidade publicação.
+
+#### Guardrails
+
+- `/careful` — avisa antes de comandos destrutivos (rm -rf, DROP TABLE, force-push).
+- `/freeze` — restringe edits a um diretório. **Descongela com `/unfreeze`.**
+- `/guard` — modo máximo: `/careful` + `/freeze` combinados.
+
+#### Outros
+
+- `/gstack-upgrade` — atualiza gstack para a última versão.
+- `/context-save` / `/context-restore` — checkpoint de contexto entre sessões.
+- `/pair-agent` — pareia outro agente remoto com o browser local.
+- `/plan-tune` — ajusta sensibilidade das perguntas AskUserQuestion do gstack.
+
+### Deploy do Nymbus Store
+
+Quando chegarmos na Fase 6 (webhooks de pagamento → precisa de domínio público → deploy temporário na Vercel), rodar **`/setup-deploy`** para que `/ship` e `/land-and-deploy` já saibam a configuração. Até lá, nada disso é exercido.

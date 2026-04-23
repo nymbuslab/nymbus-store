@@ -87,6 +87,47 @@ export type Database = {
           },
         ]
       }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          position: number
+          slug: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          position?: number
+          slug: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          position?: number
+          slug?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_users: {
         Row: {
           avatar_url: string | null
@@ -116,6 +157,113 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      products: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_featured: boolean
+          name: string
+          price_cents: number
+          primary_image_url: string | null
+          promo_price_cents: number | null
+          sku: string | null
+          slug: string
+          status: Database["public"]["Enums"]["product_status"]
+          stock_qty: number | null
+          store_id: string
+          updated_at: string
+          weight_grams: number | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_featured?: boolean
+          name: string
+          price_cents: number
+          primary_image_url?: string | null
+          promo_price_cents?: number | null
+          sku?: string | null
+          slug: string
+          status?: Database["public"]["Enums"]["product_status"]
+          stock_qty?: number | null
+          store_id: string
+          updated_at?: string
+          weight_grams?: number | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_featured?: boolean
+          name?: string
+          price_cents?: number
+          primary_image_url?: string | null
+          promo_price_cents?: number | null
+          sku?: string | null
+          slug?: string
+          status?: Database["public"]["Enums"]["product_status"]
+          stock_qty?: number | null
+          store_id?: string
+          updated_at?: string
+          weight_grams?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_delivery_config: {
+        Row: {
+          delivery_fee_cents: number | null
+          delivery_radius_km: number | null
+          local_delivery_enabled: boolean
+          pickup_enabled: boolean
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          delivery_fee_cents?: number | null
+          delivery_radius_km?: number | null
+          local_delivery_enabled?: boolean
+          pickup_enabled?: boolean
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          delivery_fee_cents?: number | null
+          delivery_radius_km?: number | null
+          local_delivery_enabled?: boolean
+          pickup_enabled?: boolean
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_delivery_config_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       store_members: {
         Row: {
@@ -152,6 +300,97 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "platform_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_payment_gateways: {
+        Row: {
+          created_at: string
+          id: string
+          provider: Database["public"]["Enums"]["payment_provider"]
+          status: Database["public"]["Enums"]["payment_gateway_status"]
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          provider: Database["public"]["Enums"]["payment_provider"]
+          status?: Database["public"]["Enums"]["payment_gateway_status"]
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          status?: Database["public"]["Enums"]["payment_gateway_status"]
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_payment_gateways_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_settings: {
+        Row: {
+          address_city: string | null
+          address_complement: string | null
+          address_neighborhood: string | null
+          address_number: string | null
+          address_state: string | null
+          address_street: string | null
+          address_zip_code: string | null
+          contact_email: string | null
+          phone: string | null
+          policy: string | null
+          store_id: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address_city?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip_code?: string | null
+          contact_email?: string | null
+          phone?: string | null
+          policy?: string | null
+          store_id: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address_city?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip_code?: string | null
+          contact_email?: string | null
+          phone?: string | null
+          policy?: string | null
+          store_id?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_settings_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
             referencedColumns: ["id"]
           },
         ]
@@ -202,11 +441,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_store: { Args: { p_store_id: string }; Returns: Json }
       create_store: {
         Args: { p_name: string; p_slug: string }
         Returns: string
       }
       is_platform_admin: { Args: never; Returns: boolean }
+      mark_store_configuring: {
+        Args: { p_store_id: string }
+        Returns: undefined
+      }
       record_audit: {
         Args: {
           p_action: string
@@ -217,10 +461,20 @@ export type Database = {
         }
         Returns: number
       }
+      upsert_store_payment_gateway: {
+        Args: {
+          p_provider: Database["public"]["Enums"]["payment_provider"]
+          p_store_id: string
+        }
+        Returns: string
+      }
       user_has_store_access: { Args: { p_store_id: string }; Returns: boolean }
       user_is_store_owner: { Args: { p_store_id: string }; Returns: boolean }
     }
     Enums: {
+      payment_gateway_status: "pending_credentials" | "configured" | "disabled"
+      payment_provider: "mercadopago" | "pagarme"
+      product_status: "draft" | "active" | "inactive"
       store_member_role: "owner" | "admin" | "operator" | "financial"
       store_status: "draft" | "configuring" | "active" | "blocked"
     }
@@ -353,6 +607,9 @@ export const Constants = {
   },
   public: {
     Enums: {
+      payment_gateway_status: ["pending_credentials", "configured", "disabled"],
+      payment_provider: ["mercadopago", "pagarme"],
+      product_status: ["draft", "active", "inactive"],
       store_member_role: ["owner", "admin", "operator", "financial"],
       store_status: ["draft", "configuring", "active", "blocked"],
     },

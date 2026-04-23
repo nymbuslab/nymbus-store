@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   Card,
@@ -7,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { StoreStatusBadge } from "@/components/admin/store-status-badge";
 import { CreateStoreForm } from "@/modules/stores/components/create-store-form";
 import {
@@ -14,6 +16,8 @@ import {
   getStoreMemberCount,
   listUserStores,
 } from "@/modules/stores/queries";
+import { loadOnboardingState } from "@/modules/onboarding/queries";
+import { ONBOARDING_STEPS } from "@/constants/onboarding";
 
 export const metadata: Metadata = {
   title: "Dashboard | Nymbus Store",
@@ -44,7 +48,15 @@ export default async function AdminDashboardPage() {
     );
   }
 
-  const memberCount = await getStoreMemberCount(active.id);
+  const [memberCount, onboarding] = await Promise.all([
+    getStoreMemberCount(active.id),
+    loadOnboardingState(active.id),
+  ]);
+
+  const isActive = onboarding.storeStatus === "active";
+  const pendingCount = ONBOARDING_STEPS.filter(
+    (s) => s.key !== "revisao" && !onboarding.checklist[s.key],
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -53,6 +65,33 @@ export default async function AdminDashboardPage() {
         description={`Loja /${active.slug}`}
         actions={<StoreStatusBadge status={active.status} />}
       />
+
+      {!isActive ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Complete o onboarding</CardTitle>
+            <CardDescription>
+              {pendingCount > 0
+                ? `Faltam ${pendingCount} passo${pendingCount > 1 ? "s" : ""} para ativar a loja.`
+                : "Todos os passos foram preenchidos — ative a loja para começar a operar."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href={
+                onboarding.nextPendingStep
+                  ? ONBOARDING_STEPS.find(
+                      (s) => s.key === onboarding.nextPendingStep,
+                    )?.href ?? "/admin/onboarding"
+                  : "/admin/onboarding/revisao"
+              }
+              className={buttonVariants()}
+            >
+              {pendingCount > 0 ? "Continuar onboarding" : "Revisar e ativar"}
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Membros da equipe" value={String(memberCount)} />
@@ -71,23 +110,10 @@ export default async function AdminDashboardPage() {
         <MetricCard
           label="Produtos"
           value="—"
-          description="Disponível na Fase 3"
+          description="CRUD completo na Fase 3"
           muted
         />
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Próximos passos</CardTitle>
-          <CardDescription>
-            Complete o onboarding para ativar a loja (Fase 2).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Enquanto o wizard de onboarding não está pronto, você pode ir direto para
-          as áreas do menu lateral (ainda sem conteúdo) ou aguardar a próxima fase.
-        </CardContent>
-      </Card>
     </div>
   );
 }
