@@ -121,7 +121,7 @@ supabase/
 | 0 | Fundação técnica: setup, auth, multi-tenant, design system | ✅ |
 | 1 | Banco de dados, dashboard base, shell do admin | ✅ |
 | 2 | Onboarding do lojista | ✅ |
-| 3 | Catálogo: categorias e produtos | ⏳ |
+| 3 | Catálogo: categorias e produtos | ✅ |
 | 4 | Pedidos e clientes | ⏳ |
 | 5 | Frete local e logística mínima | ⏳ |
 | 6 | Pagamentos dos pedidos (MP/Pagar.me) | ⏳ |
@@ -279,6 +279,36 @@ App:
 - Rotas `src/app/(admin)/admin/onboarding/{page, loja, endereco, logo, categoria, produto, entrega, pagamento, revisao}`.
 - Dashboard: quando a loja não está `active`, aparece card "Complete o onboarding" com link direto para o próximo passo pendente.
 - `next.config.ts` registra o hostname do Supabase Storage em `images.remotePatterns` para o `<Image>` do logo.
+
+### Fase 3
+
+Migration `20260423020210_phase3_catalog_schema.sql`:
+
+- **`product_images`** — galeria por produto (`id`, `product_id`, `store_id`, `url`, `storage_path`, `position`). `position=0` é a imagem principal (espelhada em `products.primary_image_url`). RLS por `user_has_store_access(store_id)`.
+- **`store_settings.stock_enabled`** (boolean, default `true`) — quando `false`, a loja não controla estoque; o campo "quantidade" some do form de produto.
+- **`products.sku`** — unique parcial por loja (`unique (store_id, sku) where sku is not null`). Permite múltiplos produtos sem SKU mas impede duplicatas.
+- **RPCs**:
+  - `public.reorder_categories(store_id, uuid[])` — atualiza `position` em lote via array ordenado. Respeita RLS via `user_has_store_access`.
+  - `public.reorder_product_images(product_id, uuid[])` — idem para galeria + atualiza `products.primary_image_url` com a nova posição 0.
+
+Migration `20260423020213_phase3_catalog_storage.sql`:
+
+- Bucket público `product-images` (5 MB, PNG/JPEG/WebP). Path `{store_id}/{product_id}/{timestamp}-{random}.{ext}`. Policies em `storage.objects` derivam `store_id` via `(storage.foldername(name))[1]::uuid` + `user_has_store_access`.
+
+App:
+
+- Módulo `src/modules/catalog/categories/` — CRUD, `reorder_categories` via drag-and-drop, toggle ativo.
+- Módulo `src/modules/catalog/products/` — CRUD completo + galeria. Validações Zod em `src/lib/validations/catalog.ts` (incluindo `promo_price < price`).
+- Componente `src/components/shared/image-uploader.tsx` — drag-and-drop de arquivos, upload **direto do browser** para Supabase Storage (não passa por server action), preview otimista, `registerProductImageAction` grava o registro, reordenação via `@dnd-kit/sortable`.
+- Módulo `src/modules/settings/` — toggle `stock_enabled` via server action.
+- Rotas:
+  - `/admin/catalogo/categorias` — lista + criar inline + editar + reordenar + toggle.
+  - `/admin/catalogo/produtos` — lista filtrável (busca por nome/SKU, status, categoria). Cards mobile / tabela desktop.
+  - `/admin/catalogo/produtos/novo` — form de criação (sem galeria — precisa do ID).
+  - `/admin/catalogo/produtos/[id]` — editar + galeria + zona de perigo (excluir).
+  - `/admin/configuracoes` — toggle `stock_enabled`.
+- `AdminNav` atualizado: `Categorias` + `Produtos` apontando para `/admin/catalogo/*`.
+- Libs novas: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`.
 
 Triggers:
 

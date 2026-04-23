@@ -158,6 +158,51 @@ export type Database = {
         }
         Relationships: []
       }
+      product_images: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          product_id: string
+          storage_path: string | null
+          store_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position?: number
+          product_id: string
+          storage_path?: string | null
+          store_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          product_id?: string
+          storage_path?: string | null
+          store_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_images_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
@@ -351,6 +396,7 @@ export type Database = {
           contact_email: string | null
           phone: string | null
           policy: string | null
+          stock_enabled: boolean
           store_id: string
           updated_at: string
           whatsapp: string | null
@@ -366,6 +412,7 @@ export type Database = {
           contact_email?: string | null
           phone?: string | null
           policy?: string | null
+          stock_enabled?: boolean
           store_id: string
           updated_at?: string
           whatsapp?: string | null
@@ -381,6 +428,7 @@ export type Database = {
           contact_email?: string | null
           phone?: string | null
           policy?: string | null
+          stock_enabled?: boolean
           store_id?: string
           updated_at?: string
           whatsapp?: string | null
@@ -460,6 +508,14 @@ export type Database = {
           p_store_id?: string
         }
         Returns: number
+      }
+      reorder_categories: {
+        Args: { p_ordered_ids: string[]; p_store_id: string }
+        Returns: undefined
+      }
+      reorder_product_images: {
+        Args: { p_ordered_ids: string[]; p_product_id: string }
+        Returns: undefined
       }
       upsert_store_payment_gateway: {
         Args: {
