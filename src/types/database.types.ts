@@ -664,6 +664,8 @@ export type Database = {
           policy: string | null
           stock_enabled: boolean
           store_id: string
+          theme_primary_color: string
+          theme_secondary_color: string
           updated_at: string
           whatsapp: string | null
         }
@@ -680,6 +682,8 @@ export type Database = {
           policy?: string | null
           stock_enabled?: boolean
           store_id: string
+          theme_primary_color?: string
+          theme_secondary_color?: string
           updated_at?: string
           whatsapp?: string | null
         }
@@ -696,6 +700,8 @@ export type Database = {
           policy?: string | null
           stock_enabled?: boolean
           store_id?: string
+          theme_primary_color?: string
+          theme_secondary_color?: string
           updated_at?: string
           whatsapp?: string | null
         }

@@ -2,6 +2,7 @@ export type OnboardingStepKey =
   | "loja"
   | "endereco"
   | "logo"
+  | "identidade"
   | "categoria"
   | "produto"
   | "entrega"
@@ -13,6 +14,7 @@ export type OnboardingStep = {
   href: string;
   label: string;
   shortLabel: string;
+  optional?: boolean;
 };
 
 export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
@@ -33,6 +35,13 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     href: "/admin/onboarding/logo",
     label: "Logo da loja",
     shortLabel: "Logo",
+  },
+  {
+    key: "identidade",
+    href: "/admin/onboarding/identidade-visual",
+    label: "Identidade visual",
+    shortLabel: "Identidade",
+    optional: true,
   },
   {
     key: "categoria",
@@ -72,6 +81,7 @@ export const EMPTY_CHECKLIST: OnboardingChecklist = {
   loja: false,
   endereco: false,
   logo: false,
+  identidade: false,
   categoria: false,
   produto: false,
   entrega: false,

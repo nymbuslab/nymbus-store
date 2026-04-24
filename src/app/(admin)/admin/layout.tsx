@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { StoreThemeStyle } from "@/components/providers/store-theme-style";
 import { getActiveStore, listUserStores } from "@/modules/stores/queries";
+import { getStoreTheme } from "@/modules/theme/queries";
+import { buildStoreTheme } from "@/lib/theme/derive";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -16,9 +19,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   const [stores, active] = await Promise.all([listUserStores(), getActiveStore()]);
+  const theme = active
+    ? await getStoreTheme(active.id)
+    : buildStoreTheme({ primary: null, secondary: null });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div data-store-theme className="min-h-screen bg-background">
+      <StoreThemeStyle theme={theme} />
       <AdminHeader
         userEmail={user.email ?? null}
         stores={stores}

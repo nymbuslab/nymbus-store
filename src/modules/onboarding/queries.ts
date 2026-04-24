@@ -102,6 +102,7 @@ export async function loadOnboardingState(storeId: string): Promise<OnboardingSt
         settings?.address_state,
     ),
     logo: Boolean(store.logo_url),
+    identidade: true,
     categoria: Boolean(categoryRes.data),
     produto: Boolean(productRes.data),
     entrega: Boolean(
@@ -112,7 +113,9 @@ export async function loadOnboardingState(storeId: string): Promise<OnboardingSt
   };
 
   const nextPendingStep =
-    ONBOARDING_STEPS.find((step) => !checklist[step.key])?.key ?? null;
+    ONBOARDING_STEPS.find(
+      (step) => !step.optional && !checklist[step.key],
+    )?.key ?? null;
 
   return {
     storeId: store.id,

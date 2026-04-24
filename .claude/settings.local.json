@@ -52,7 +52,9 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code} →%{redirect_url}\\\\n\" http://localhost:3000/admin/catalogo/categorias)",
       "Bash(curl -s -o /dev/null -w \"%{http_code} →%{redirect_url}\\\\n\" http://localhost:3000/admin/catalogo/produtos)",
       "Bash(curl -s -o /dev/null -w \"%{http_code} →%{redirect_url}\\\\n\" http://localhost:3000/admin/catalogo/produtos/novo)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code} →%{redirect_url}\\\\n\" http://localhost:3000/admin/configuracoes)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code} →%{redirect_url}\\\\n\" http://localhost:3000/admin/configuracoes)",
+      "Skill(design-consultation)",
+      "Skill(design-consultation:*)"
     ]
   }
 }
